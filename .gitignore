@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+*.db
+.env
+data/raw/
+backend/data/
+
+# Node
+frontend/node_modules/
+frontend/dist/
