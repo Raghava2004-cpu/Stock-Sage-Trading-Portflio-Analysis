@@ -1,6 +1,4 @@
-# database.py — StockSage
-# SQLAlchemy models + session factory
-# Uses SQLite locally, swap DATABASE_URL env var for PostgreSQL in production
+
 
 import os
 from datetime import datetime
