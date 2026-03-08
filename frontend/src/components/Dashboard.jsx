@@ -13,7 +13,7 @@ import TaxOptimizer from "./TaxOptimizer";
 
 
 
-// ── Stat Card ─────────────────────────────────────────
+// ── Stat Card ────────────────────────────────────
 function StatCard({ label, value, sub, color, bg }) {
   return (
     <div style={{ ...card, background:bg||C.bgCard, padding:"22px 24px" }}>
