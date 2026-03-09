@@ -5,13 +5,19 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from datetime import datetime, date
-from scipy.optimize import brentq
-from utils.logger import get_logger
 
-logger = get_logger("analytics")
+
+# Add parent directory to path to resolve utils module
+sys.path.insert(0, str(Path(__file__).parent.parent))
+import utils.logger # pyright: ignore[reportMissingImports]
+
+logger = utils.logger.get_logger("analytics")
 
 TODAY = pd.Timestamp(date.today())
 
@@ -117,31 +123,25 @@ def compute_pnl(master_ledger: pd.DataFrame, holdings: pd.DataFrame) -> pd.DataF
 # MODULE 2 — XIRR PER STOCK
 # ═══════════════════════════════════════════════════════════
 
-def _xirr(cashflows: list) -> float:
-    """
-    Compute XIRR given a list of (date, amount) tuples.
-    Negative amount = money OUT (buy).
-    Positive amount = money IN (sell or current value).
-    Returns annualized rate as a decimal. Returns NaN if unsolvable.
-    """
+def xirr(cashflows):
+    """Pure Python XIRR — no scipy needed."""
     if len(cashflows) < 2:
-        return np.nan
-
-    dates   = [cf[0] for cf in cashflows]
-    amounts = [cf[1] for cf in cashflows]
-    t0      = dates[0]
-
-    # days from first cashflow
-    days = [(d - t0).days for d in dates]
-
-    def npv(rate):
-        return sum(amt / ((1 + rate) ** (d / 365.0))
-                   for amt, d in zip(amounts, days))
-
+        return None
     try:
-        return brentq(npv, -0.999, 100.0, maxiter=1000)
-    except (ValueError, RuntimeError):
-        return np.nan
+        rate = 0.1
+        for _ in range(1000):
+            npv  = sum(cf / (1 + rate) ** ((d - cashflows[0][0]).days / 365.0) for d, cf in cashflows)
+            dnpv = sum(-((d - cashflows[0][0]).days / 365.0) * cf / (1 + rate) ** ((d - cashflows[0][0]).days / 365.0 + 1) for d, cf in cashflows)
+            if dnpv == 0:
+                break
+            new_rate = rate - npv / dnpv
+            if abs(new_rate - rate) < 1e-6:
+                rate = new_rate
+                break
+            rate = new_rate
+        return round(rate * 100, 2) if -1 < rate < 100 else None
+    except:
+        return None
 
 
 def compute_xirr(master_ledger: pd.DataFrame, pnl_df: pd.DataFrame) -> pd.DataFrame:
@@ -178,8 +178,9 @@ def compute_xirr(master_ledger: pd.DataFrame, pnl_df: pd.DataFrame) -> pd.DataFr
         if current_val > 0:
             cashflows.append((TODAY.to_pydatetime(), +current_val))
 
-        rate = _xirr(cashflows)
-        xirr_pct = round(rate * 100, 2) if not np.isnan(rate) else np.nan
+        xirr_pct = xirr(cashflows)
+        if xirr_pct is None:
+          xirr_pct = np.nan
 
         xirr_results.append({"symbol": symbol, "xirr_pct": xirr_pct})
 
