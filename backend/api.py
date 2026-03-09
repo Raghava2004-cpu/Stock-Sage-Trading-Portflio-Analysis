@@ -7,7 +7,7 @@ import math
 import uuid
 import shutil
 from datetime import datetime
-
+from backend.pipeline.ingestor import ingest
 import pandas as pd
 import numpy as np
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
