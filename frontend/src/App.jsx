@@ -13,7 +13,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState("login");
   const [user,     setUser]     = useState(stored ? JSON.parse(stored) : null);
 
-  // On mount: if user already logged in, check if they have data
+
   useEffect(() => {
     if (!user) return;
     // /status is user-scoped (uses the JWT interceptor automatically)
