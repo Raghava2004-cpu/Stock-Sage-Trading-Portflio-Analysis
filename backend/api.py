@@ -17,9 +17,17 @@ from sqlalchemy.orm import Session
 from database import get_db, create_tables, User, Portfolio, Stock
 from auth import router as auth_router, get_current_user
 from prices import router as prices_router
-from pipeline.ingestor import ingest
-from pipeline.cleaner import clean
-from pipeline.analytics import run_analytics
+from backend.pipeline.ingestor import ingest
+from backend.pipeline.cleaner import clean
+from backend.pipeline.analytics import run_analytics
+
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+def root():
+    return {"status": "Stock Sage API running"}
 
 # ── File paths (same as original pipeline expects) ────
 RAW_DIR = "data/raw"
