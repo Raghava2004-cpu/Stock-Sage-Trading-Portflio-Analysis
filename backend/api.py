@@ -8,7 +8,9 @@ import uuid
 import shutil
 from datetime import datetime, timezone, timedelta
 
-IST = timezone(timedelta(hours=0, minutes=0))
+# IST = UTC + 5:30
+IST = timezone(timedelta(hours=5, minutes=30))
+IST_OFFSET = timedelta(hours=5, minutes=30)
 
 import pandas as pd
 import numpy as np
@@ -35,7 +37,6 @@ app = FastAPI(
     version="2.0.0",
 )
 
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,64 +44,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Database tables
 @app.on_event("startup")
 def startup():
     create_tables()
 
-# Routers
 app.include_router(auth_router)
 app.include_router(prices_router)
 
-
-# ─────────────────────────────────────────────
-# Health Check
-# ─────────────────────────────────────────────
-
-@app.get("/", tags=["Health"])
-def root():
-    return {
-        "status": "running",
-        "message": "StockSage API is live 🚀",
-        "version": "2.0.0",
-    }
-
-
-@app.get("/ingest")
-def run_ingest():
-    return ingest()
-
-
-# ── File paths (same as original pipeline expects)
 RAW_DIR = "data/raw"
-
-app = FastAPI(
-    title="StockSage API",
-    description="Portfolio analytics engine — Equity + F&O",
-    version="2.0.0",
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Create DB tables on startup
-@app.on_event("startup")
-def startup():
-    create_tables()
-
-# Include routers
-app.include_router(auth_router)
-app.include_router(prices_router)
 
 
 # ── Helpers ───────────────────────────────────────────
 
 def df_to_json(df: pd.DataFrame) -> list:
-    """Convert DataFrame to JSON-safe list. Replaces NaN/Inf with None."""
     return (
         df.replace([np.nan, np.inf, -np.inf], None)
           .where(pd.notnull(df), None)
@@ -109,12 +65,10 @@ def df_to_json(df: pd.DataFrame) -> list:
 
 
 def stocks_to_records(stocks: list) -> list:
-    """Convert Stock ORM objects directly to JSON-safe dicts without going via DataFrame."""
     def safe(v):
         if v is None:
             return None
         try:
-            import math
             if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
                 return None
         except Exception:
@@ -159,19 +113,12 @@ def get_active_portfolio(user: User, db: Session) -> Portfolio:
     return portfolio
 
 
-# stocks_to_df replaced by stocks_to_records above
-
-
 # ══════════════════════════════════════════════════════
 # HEALTH CHECK
 # ══════════════════════════════════════════════════════
 
 @app.get("/", tags=["Health"])
-def root(
-    db: Session = Depends(get_db),
-    # Optional auth — returns scorecard_ready based on current user if logged in
-    # Falls back to False if no token (for the initial App.jsx check)
-):
+def root():
     return {
         "status":  "running",
         "message": "StockSage API is live 🚀",
@@ -184,17 +131,15 @@ def status(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Check if the current user has uploaded portfolio data."""
     has_data = db.query(Portfolio).filter(
         Portfolio.user_id == current_user.id,
         Portfolio.is_active == True,
     ).first() is not None
-
-    return { "scorecard_ready": has_data }
+    return {"scorecard_ready": has_data}
 
 
 # ══════════════════════════════════════════════════════
-# UPLOAD — saves snapshot, keeps history
+# UPLOAD
 # ══════════════════════════════════════════════════════
 
 @app.post("/upload", tags=["Upload"])
@@ -205,11 +150,6 @@ async def upload_and_run(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """
-    Upload 3 Zerodha CSVs → runs the pipeline → saves to DB as a new snapshot.
-    Old portfolios are kept inactive for history tracking.
-    """
-    # Write uploads to data/raw — where the existing pipeline expects them
     os.makedirs(RAW_DIR, exist_ok=True)
 
     file_map = {
@@ -222,7 +162,6 @@ async def upload_and_run(
         with open(dest, "wb") as f:
             shutil.copyfileobj(upload.file, f)
 
-    # Run the analytics pipeline
     try:
         raw_data  = ingest()
         cleaned   = clean(raw_data)
@@ -231,17 +170,16 @@ async def upload_and_run(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Pipeline failed: {str(e)}")
 
-    # ── Deactivate previous portfolios (keep for history) ──
     db.query(Portfolio).filter(
         Portfolio.user_id == current_user.id,
         Portfolio.is_active == True,
     ).update({"is_active": False})
 
-    # ── Create new portfolio snapshot ──
+    # Save with IST time
     portfolio = Portfolio(
         id                  = str(uuid.uuid4()),
         user_id             = current_user.id,
-        uploaded_at = datetime.now(IST).replace(tzinfo=None),
+        uploaded_at         = datetime.now(IST).replace(tzinfo=None),
         is_active           = True,
         total_invested      = round(float(sc["total_invested"].sum()), 2),
         total_current_value = round(float(sc["current_value"].sum()), 2),
@@ -249,9 +187,8 @@ async def upload_and_run(
         total_pnl_pct       = round(float(sc["total_pnl"].sum() / sc["total_invested"].sum() * 100), 2) if sc["total_invested"].sum() else 0,
     )
     db.add(portfolio)
-    db.flush()  # get portfolio.id before inserting stocks
+    db.flush()
 
-    # ── Save each stock row ──
     def safe(row, col, default=None):
         v = row.get(col, default)
         return None if pd.isna(v) else v
@@ -286,17 +223,17 @@ async def upload_and_run(
     db.commit()
 
     return {
-        "status":        "success",
-        "message":       "Portfolio saved ✓",
-        "total_stocks":  len(sc),
+        "status":         "success",
+        "message":        "Portfolio saved ✓",
+        "total_stocks":   len(sc),
         "total_invested": portfolio.total_invested,
-        "total_pnl":     portfolio.total_pnl,
-        "snapshot_id":   portfolio.id,
+        "total_pnl":      portfolio.total_pnl,
+        "snapshot_id":    portfolio.id,
     }
 
 
 # ══════════════════════════════════════════════════════
-# PORTFOLIO SUMMARY — user-scoped
+# PORTFOLIO SUMMARY
 # ══════════════════════════════════════════════════════
 
 @app.get("/portfolio/summary", tags=["Portfolio"])
@@ -319,7 +256,6 @@ def portfolio_summary(
 
     fno_pnl = sum(s.total_pnl or 0 for s in stocks if s.tax_classification == "FNO")
 
-    # Best/worst by xirr — ignore None/NaN
     with_xirr = [s for s in stocks if s.xirr_pct is not None and not math.isnan(s.xirr_pct)]
     best_stock  = max(with_xirr, key=lambda s: s.xirr_pct) if with_xirr else stocks[0]
     worst_stock = min(with_xirr, key=lambda s: s.xirr_pct) if with_xirr else stocks[-1]
@@ -341,7 +277,7 @@ def portfolio_summary(
 
 
 # ══════════════════════════════════════════════════════
-# ALL STOCKS — user-scoped
+# ALL STOCKS
 # ══════════════════════════════════════════════════════
 
 @app.get("/stocks", tags=["Stocks"])
@@ -358,7 +294,6 @@ def get_all_stocks(
     if segment:
         records = [r for r in records if (r.get("tax_classification") or "").upper() == segment.upper()]
 
-    # Sort — handle None values safely
     if records and sort_by in records[0]:
         records = sorted(
             records,
@@ -366,11 +301,11 @@ def get_all_stocks(
             reverse=(order.lower() == "desc"),
         )
 
-    return { "count": len(records), "stocks": records }
+    return {"count": len(records), "stocks": records}
 
 
 # ══════════════════════════════════════════════════════
-# PORTFOLIO HISTORY — the new killer feature
+# PORTFOLIO HISTORY
 # ══════════════════════════════════════════════════════
 
 @app.get("/portfolio/history", tags=["Portfolio"])
@@ -378,10 +313,6 @@ def portfolio_history(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """
-    Returns all portfolio snapshots for the current user, ordered by date.
-    Used to render the portfolio value over time chart.
-    """
     portfolios = (
         db.query(Portfolio)
         .filter(Portfolio.user_id == current_user.id)
@@ -389,19 +320,21 @@ def portfolio_history(
         .all()
     )
 
+    # Add IST_OFFSET to display correct Indian time
+    # (old UTC snapshots get +5:30, new IST snapshots stay correct)
     return [{
-    "date":                p.uploaded_at.replace(tzinfo=timezone.utc).astimezone(IST).strftime("%Y-%m-%d %H:%M"),
-    "label":               p.uploaded_at.replace(tzinfo=timezone.utc).astimezone(IST).strftime("%d %b %H:%M"),
-    "total_invested":      p.total_invested,
-    "total_current_value": p.total_current_value,
-    "total_pnl":           p.total_pnl,
-    "total_pnl_pct":       p.total_pnl_pct,
-    "is_active":           p.is_active,
-} for p in portfolios]
+        "date":                (p.uploaded_at + IST_OFFSET).strftime("%Y-%m-%d %H:%M"),
+        "label":               (p.uploaded_at + IST_OFFSET).strftime("%d %b %H:%M"),
+        "total_invested":      p.total_invested,
+        "total_current_value": p.total_current_value,
+        "total_pnl":           p.total_pnl,
+        "total_pnl_pct":       p.total_pnl_pct,
+        "is_active":           p.is_active,
+    } for p in portfolios]
 
 
 # ══════════════════════════════════════════════════════
-# TAX HARVESTING — the new high-value feature
+# TAX HARVESTING
 # ══════════════════════════════════════════════════════
 
 @app.get("/portfolio/tax-harvest", tags=["Portfolio"])
@@ -409,43 +342,28 @@ def tax_harvest_suggestions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """
-    Computes tax-loss harvesting opportunities.
-
-    Logic:
-    - LTCG gains above ₹1,25,000 are taxed at 12.5%
-    - STCG gains are taxed at 20%
-    - Unrealized losses can be booked to offset gains
-    - Each suggestion shows: sell X, save Y in tax
-    """
-    LTCG_EXEMPTION  = 125000   # ₹1.25L exempt (Budget 2024)
-    LTCG_TAX_RATE   = 0.125    # 12.5%
-    STCG_TAX_RATE   = 0.20     # 20%
+    LTCG_EXEMPTION = 125000
+    LTCG_TAX_RATE  = 0.125
+    STCG_TAX_RATE  = 0.20
 
     portfolio = get_active_portfolio(current_user, db)
     stocks    = portfolio.stocks
 
-    # Stocks still held (qty > 0) with unrealized losses
     loss_stocks = [
         s for s in stocks
         if (s.current_qty or 0) > 0 and (s.unrealized_pnl or 0) < 0
     ]
 
-    # LTCG realized gains this year (from sold LTCG stocks)
     ltcg_gains = sum(
-        (s.realized_pnl or 0)
-        for s in stocks
+        (s.realized_pnl or 0) for s in stocks
         if s.tax_classification == "LTCG" and (s.realized_pnl or 0) > 0
     )
-
-    # STCG realized gains this year
     stcg_gains = sum(
-        (s.realized_pnl or 0)
-        for s in stocks
+        (s.realized_pnl or 0) for s in stocks
         if s.tax_classification == "STCG" and (s.realized_pnl or 0) > 0
     )
 
-    taxable_ltcg = max(0, ltcg_gains - LTCG_EXEMPTION)
+    taxable_ltcg     = max(0, ltcg_gains - LTCG_EXEMPTION)
     current_ltcg_tax = round(taxable_ltcg * LTCG_TAX_RATE, 2)
     current_stcg_tax = round(stcg_gains * STCG_TAX_RATE, 2)
 
@@ -455,10 +373,9 @@ def tax_harvest_suggestions(
 
     for s in sorted(loss_stocks, key=lambda x: x.unrealized_pnl or 0):
         loss = abs(s.unrealized_pnl or 0)
-        if loss < 500:          # Skip trivially small losses
+        if loss < 500:
             continue
 
-        # Decide which gain pool to offset
         if remaining_ltcg_offset > 0:
             offset_from = "LTCG"
             offset_amt  = min(loss, remaining_ltcg_offset)
@@ -472,33 +389,33 @@ def tax_harvest_suggestions(
         else:
             offset_from = "Carry Forward"
             offset_amt  = loss
-            tax_saved   = 0   # Carried forward to next year
+            tax_saved   = 0
 
         suggestions.append({
-            "symbol":        s.symbol,
-            "unrealized_pnl": round(s.unrealized_pnl or 0, 2),
-            "current_qty":   s.current_qty,
-            "last_price":    s.last_price,
+            "symbol":             s.symbol,
+            "unrealized_pnl":     round(s.unrealized_pnl or 0, 2),
+            "current_qty":        s.current_qty,
+            "last_price":         s.last_price,
             "tax_classification": s.tax_classification,
-            "offset_from":   offset_from,
-            "loss_to_book":  round(loss, 2),
-            "tax_saved":     tax_saved,
-            "action":        f"Sell {s.current_qty} shares of {s.symbol} at ~₹{s.last_price:,.0f}",
+            "offset_from":        offset_from,
+            "loss_to_book":       round(loss, 2),
+            "tax_saved":          tax_saved,
+            "action":             f"Sell {s.current_qty} shares of {s.symbol} at ~₹{s.last_price:,.0f}",
         })
 
     total_tax_saved = sum(s["tax_saved"] for s in suggestions)
 
     return {
         "summary": {
-            "ltcg_gains":       round(ltcg_gains, 2),
-            "stcg_gains":       round(stcg_gains, 2),
-            "taxable_ltcg":     round(taxable_ltcg, 2),
-            "current_ltcg_tax": current_ltcg_tax,
-            "current_stcg_tax": current_stcg_tax,
+            "ltcg_gains":        round(ltcg_gains, 2),
+            "stcg_gains":        round(stcg_gains, 2),
+            "taxable_ltcg":      round(taxable_ltcg, 2),
+            "current_ltcg_tax":  current_ltcg_tax,
+            "current_stcg_tax":  current_stcg_tax,
             "total_current_tax": round(current_ltcg_tax + current_stcg_tax, 2),
-            "total_tax_saved":  round(total_tax_saved, 2),
+            "total_tax_saved":   round(total_tax_saved, 2),
             "tax_after_harvest": round(current_ltcg_tax + current_stcg_tax - total_tax_saved, 2),
-            "ltcg_exemption":   LTCG_EXEMPTION,
+            "ltcg_exemption":    LTCG_EXEMPTION,
         },
         "suggestions": suggestions,
         "note": "Tax calculations are estimates. Consult a CA before executing trades.",
