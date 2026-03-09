@@ -1,15 +1,16 @@
 # api.py — StockSage
 # Production-ready FastAPI backend
-# Run with: uvicorn api:app --reload
+# Run with: uvicorn api:app --host 0.0.0.0 --port 8000
 
 import os
 import math
 import uuid
 import shutil
 from datetime import datetime
-from backend.pipeline.ingestor import ingest
+
 import pandas as pd
 import numpy as np
+
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -17,23 +18,59 @@ from sqlalchemy.orm import Session
 from database import get_db, create_tables, User, Portfolio, Stock
 from auth import router as auth_router, get_current_user
 from prices import router as prices_router
+
 from backend.pipeline.ingestor import ingest
 from backend.pipeline.cleaner import clean
 from backend.pipeline.analytics import run_analytics
-from fastapi import FastAPI
-from backend.pipeline.ingestor import ingest
 
-app = FastAPI()
 
-@app.get("/")
-def home():
-    return {"message": "Stock Sage API running"}
+# ─────────────────────────────────────────────
+# FastAPI App
+# ─────────────────────────────────────────────
+
+app = FastAPI(
+    title="StockSage API",
+    description="Portfolio analytics engine — Equity + F&O",
+    version="2.0.0",
+)
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Database tables
+@app.on_event("startup")
+def startup():
+    create_tables()
+
+# Routers
+app.include_router(auth_router)
+app.include_router(prices_router)
+
+
+# ─────────────────────────────────────────────
+# Health Check
+# ─────────────────────────────────────────────
+
+@app.get("/", tags=["Health"])
+def root():
+    return {
+        "status": "running",
+        "message": "StockSage API is live 🚀",
+        "version": "2.0.0",
+    }
+
 
 @app.get("/ingest")
 def run_ingest():
     return ingest()
 
-# ── File paths (same as original pipeline expects) ────
+
+# ── File paths (same as original pipeline expects)
 RAW_DIR = "data/raw"
 
 app = FastAPI(
