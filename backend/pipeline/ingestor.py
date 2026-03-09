@@ -3,9 +3,16 @@
 # Loads all 3 Zerodha CSVs, validates schema, returns raw DataFrames.
 
 import os
+import sys
+from pathlib import Path
+
 import pandas as pd
-from config import BROKER_SCHEMAS, DATA_RAW_DIR
-from utils.logger import get_logger
+
+# Add parent directory to path to resolve config module
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from config import BROKER_SCHEMAS, DATA_RAW_DIR # type: ignore
+from utils.logger import get_logger # type: ignore
 
 logger = get_logger("ingestor")
 
