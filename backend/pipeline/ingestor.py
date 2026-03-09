@@ -6,7 +6,15 @@ import pandas as pd
 
 from utils.logger import get_logger
 from config import BROKER_SCHEMAS, DATA_RAW_DIR
+
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+
+
 logger = get_logger("ingestor")
+
 
 
 def load_csv(filepath: str) -> pd.DataFrame:

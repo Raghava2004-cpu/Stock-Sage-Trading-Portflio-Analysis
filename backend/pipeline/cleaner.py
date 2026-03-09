@@ -8,6 +8,12 @@ import numpy as np
 from config import BROKER_SCHEMAS, SYMBOL_RENAME_MAP, SEGMENT
 from utils.logger import get_logger
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+
 logger = get_logger("cleaner")
 
 
