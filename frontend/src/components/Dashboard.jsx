@@ -441,53 +441,92 @@ export default function Dashboard({ user, onLogout, onReupload }) {
             </div>
           )}
 
-          {/* ── ANALYSIS ── */}
-          {tab==="analysis" && (
-            <div style={{ animation:"fadeUp .5s ease" }}>
-              <h2 style={{ fontSize:"22px", color:C.text, marginBottom:"20px" }}>Portfolio Analysis</h2>
-              <div style={{ ...card, marginBottom:"20px" }}>
-                <div style={{ fontSize:"14px", fontWeight:"700", color:C.text, marginBottom:"20px" }}>XIRR % per Stock (Annualized Return)</div>
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={stocks.filter(s=>s.xirr_pct!=null).sort((a,b)=>b.xirr_pct-a.xirr_pct).map(s=>({name:s.symbol,xirr:+s.xirr_pct.toFixed(1)}))}>
-                    <XAxis dataKey="name" tick={{fill:C.textSub,fontSize:11}} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{fill:C.textSub,fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`}/>
-                    <Tooltip formatter={v=>[`${v}%`,"XIRR"]} contentStyle={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:"8px", fontSize:"13px" }}/>
-                   <Bar dataKey="xirr" radius={[5,5,0,0]}>
-                       {stocks.filter(s=>s.xirr_pct!=null).sort((a,b)=>b.xirr_pct-a.xirr_pct).map((s,i)=>(<Cell key={i} fill={s.xirr_pct>=12?C.green:s.xirr_pct>=0?C.blueLight:C.red}/>))}
-                          </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-                <div style={{ display:"flex", gap:"16px", marginTop:"12px" }}>
-                  {[["🟢 Green","> 12% (beating market)"],["🔵 Blue","0–12%"],["🔴 Red","Negative"]].map(([c,l])=>(
-                    <div key={c} style={{ fontSize:"12px", color:C.textSub }}><strong>{c}</strong> {l}</div>
-                  ))}
-                </div>
-              </div>
-              <div style={{...card}}>
-                <div style={{ fontSize:"14px", fontWeight:"700", color:C.text, marginBottom:"20px" }}>Conviction Score — How well did you invest?</div>
-                <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
-                  {[...stocks].sort((a,b)=>(b.conviction_score||0)-(a.conviction_score||0)).map(s=>(
-                    <div key={s.symbol} style={{ display:"flex", alignItems:"center", gap:"14px" }}>
-                      <div style={{ width:"80px", fontSize:"13px", fontWeight:"600", color:C.text }}>{s.symbol}</div>
-                      <div style={{ flex:1, background:C.bg, borderRadius:"6px", height:"10px", overflow:"hidden" }}>
-                        <div style={{ height:"100%", borderRadius:"6px", width:`${s.conviction_score||0}%`,
-                          background:s.conviction_score>=75?C.green:s.conviction_score>=50?"#F59E0B":C.red,
-                          transition:"width 1s ease" }}/>
-                      </div>
-                      <div style={{ width:"36px", fontSize:"13px", fontWeight:"700", textAlign:"right",
-                        color:s.conviction_score>=75?C.green:s.conviction_score>=50?"#D97706":C.red }}>{s.conviction_score}</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ marginTop:"20px", padding:"16px", background:C.bg, borderRadius:"10px", fontSize:"13px", color:C.textSub, lineHeight:1.6 }}>
-                  💡 <strong style={{color:C.text}}>What is Conviction Score?</strong> It measures how well you behaved as an investor —
-                  how long you held, how big your position was, whether you bought more on dips, and whether you sold at the right time.
-                  Score of 75+ means you showed strong investor discipline for that stock.
-                </div>
-              </div>
-            </div>
-          )}
+        {tab === "analysis" && (
+  <div style={{ animation: "fadeUp .5s ease" }}>
+    
+    <h2 style={{ fontSize: "22px", color: C.text, marginBottom: "20px" }}>
+      Portfolio Analysis
+    </h2>
 
+    <div style={{ ...card, marginBottom: "20px" }}>
+      <div style={{
+        fontSize: "14px",
+        fontWeight: "700",
+        color: C.text,
+        marginBottom: "20px"
+      }}>
+        XIRR % per Stock (Annualized Return)
+      </div>
+
+      {(() => {
+
+        const analysisData = [...stocks]   // ⭐ IMPORTANT FIX
+          .filter(s => s.xirr_pct !== null && s.xirr_pct !== undefined)
+          .sort((a, b) => b.xirr_pct - a.xirr_pct)
+          .map(s => {
+            const xirr = Number(s.xirr_pct.toFixed(1));
+
+            return {
+              symbol: s.symbol,
+              xirr: xirr,
+              fill: xirr >= 12 ? C.green : xirr >= 0 ? C.blue : C.red
+            };
+          });
+
+        return (
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={analysisData}>
+
+              <XAxis
+                dataKey="symbol"
+                tick={{ fill: C.textSub, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+
+              <YAxis
+                tick={{ fill: C.textSub, fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `${v}%`}
+              />
+
+              <Tooltip
+                formatter={(v) => [`${v}%`, "XIRR"]}
+                labelFormatter={(l) => `Stock: ${l}`}
+                contentStyle={{
+                  background: C.white,
+                  border: `1px solid ${C.border}`,
+                  borderRadius: "8px"
+                }}
+              />
+
+              <Bar dataKey="xirr" radius={[5,5,0,0]}>
+                {analysisData.map((entry, i) => (
+                  <Cell key={i} fill={entry.fill}/>
+                ))}
+              </Bar>
+
+            </BarChart>
+          </ResponsiveContainer>
+        );
+      })()}
+
+      <div style={{ display:"flex", gap:"16px", marginTop:"12px" }}>
+        <div style={{ fontSize:"12px", color:C.textSub }}>
+          <strong>🟢 Green</strong> &gt; 12% (beating market)
+        </div>
+        <div style={{ fontSize:"12px", color:C.textSub }}>
+          <strong>🔵 Blue</strong> 0–12%
+        </div>
+        <div style={{ fontSize:"12px", color:C.textSub }}>
+          <strong>🔴 Red</strong> Negative
+        </div>
+      </div>
+
+    </div>
+  </div>
+)}
           {/* ── HEATMAP ── */}
           {tab==="heatmap" && (
             <div style={{ animation:"fadeUp .5s ease" }}>
