@@ -452,11 +452,9 @@ export default function Dashboard({ user, onLogout, onReupload }) {
                     <XAxis dataKey="name" tick={{fill:C.textSub,fontSize:11}} axisLine={false} tickLine={false}/>
                     <YAxis tick={{fill:C.textSub,fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`}/>
                     <Tooltip formatter={v=>[`${v}%`,"XIRR"]} contentStyle={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:"8px", fontSize:"13px" }}/>
-                    <Bar dataKey="xirr" radius={[5,5,0,0]}>
-                      {stocks.filter(s=>s.xirr_pct!=null).map((s,i)=>(
-                        <Cell key={i} fill={s.xirr_pct>=12?C.green:s.xirr_pct>=0?C.blueLight:C.red}/>
-                      ))}
-                    </Bar>
+                   <Bar dataKey="xirr" radius={[5,5,0,0]}>
+                       {stocks.filter(s=>s.xirr_pct!=null).sort((a,b)=>b.xirr_pct-a.xirr_pct).map((s,i)=>(<Cell key={i} fill={s.xirr_pct>=12?C.green:s.xirr_pct>=0?C.blueLight:C.red}/>))}
+                          </Bar>
                   </BarChart>
                 </ResponsiveContainer>
                 <div style={{ display:"flex", gap:"16px", marginTop:"12px" }}>
