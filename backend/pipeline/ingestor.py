@@ -4,9 +4,8 @@
 import os
 import pandas as pd
 
-from backend.config import BROKER_SCHEMAS, DATA_RAW_DIR
-from backend.utils.logger import get_logger
-
+from utils.logger import get_logger
+from config import BROKER_SCHEMAS
 logger = get_logger("ingestor")
 
 
