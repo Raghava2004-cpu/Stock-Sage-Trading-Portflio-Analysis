@@ -6,7 +6,9 @@ import os
 import math
 import uuid
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 import pandas as pd
 import numpy as np
@@ -239,7 +241,7 @@ async def upload_and_run(
     portfolio = Portfolio(
         id                  = str(uuid.uuid4()),
         user_id             = current_user.id,
-        uploaded_at         = datetime.utcnow(),
+        uploaded_at = datetime.now(IST).replace(tzinfo=None),
         is_active           = True,
         total_invested      = round(float(sc["total_invested"].sum()), 2),
         total_current_value = round(float(sc["current_value"].sum()), 2),
@@ -388,14 +390,14 @@ def portfolio_history(
     )
 
     return [{
-        "date":                p.uploaded_at.strftime("%Y-%m-%d %H:%M"),
-        "label":               p.uploaded_at.strftime("%d %b %H:%M"),
-        "total_invested":      p.total_invested,
-        "total_current_value": p.total_current_value,
-        "total_pnl":           p.total_pnl,
-        "total_pnl_pct":       p.total_pnl_pct,
-        "is_active":           p.is_active,
-    } for p in portfolios]
+    "date":                p.uploaded_at.replace(tzinfo=timezone.utc).astimezone(IST).strftime("%Y-%m-%d %H:%M"),
+    "label":               p.uploaded_at.replace(tzinfo=timezone.utc).astimezone(IST).strftime("%d %b %H:%M"),
+    "total_invested":      p.total_invested,
+    "total_current_value": p.total_current_value,
+    "total_pnl":           p.total_pnl,
+    "total_pnl_pct":       p.total_pnl_pct,
+    "is_active":           p.is_active,
+} for p in portfolios]
 
 
 # ══════════════════════════════════════════════════════
