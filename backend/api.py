@@ -20,14 +20,18 @@ from prices import router as prices_router
 from backend.pipeline.ingestor import ingest
 from backend.pipeline.cleaner import clean
 from backend.pipeline.analytics import run_analytics
-
 from fastapi import FastAPI
+from backend.pipeline.ingestor import ingest
 
 app = FastAPI()
 
 @app.get("/")
-def root():
-    return {"status": "Stock Sage API running"}
+def home():
+    return {"message": "Stock Sage API running"}
+
+@app.get("/ingest")
+def run_ingest():
+    return ingest()
 
 # ── File paths (same as original pipeline expects) ────
 RAW_DIR = "data/raw"
