@@ -8,7 +8,7 @@ import uuid
 import shutil
 from datetime import datetime, timezone, timedelta
 
-IST = timezone(timedelta(hours=5, minutes=30))
+IST = timezone(timedelta(hours=0, minutes=0))
 
 import pandas as pd
 import numpy as np
