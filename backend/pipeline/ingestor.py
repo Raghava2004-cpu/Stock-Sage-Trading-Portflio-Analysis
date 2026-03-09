@@ -5,7 +5,7 @@ import os
 import pandas as pd
 
 from utils.logger import get_logger
-from config import BROKER_SCHEMAS
+from config import BROKER_SCHEMAS, DATA_RAW_DIR
 logger = get_logger("ingestor")
 
 
