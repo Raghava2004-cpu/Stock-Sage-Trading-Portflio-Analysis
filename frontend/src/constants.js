@@ -1,7 +1,7 @@
 // constants.js — StockSage shared tokens
 import axios from "axios";
 
-export const API = "http://127.0.0.1:8000";
+export const API = "https://stock-sage-trading-portflio-analysis-7.onrender.com";
 
 // ── JWT Interceptor ────────────────────────────────────
 // Automatically attaches the auth token to every axios request.
