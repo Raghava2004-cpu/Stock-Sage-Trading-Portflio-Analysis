@@ -1,18 +1,11 @@
 # pipeline/ingestor.py
-# Phase 1 — Data Ingestion
-# Loads all 3 Zerodha CSVs, validates schema, returns raw DataFrames.
+# If it's a .js file:
 
 import os
-import sys
-from pathlib import Path
-
 import pandas as pd
 
-# Add parent directory to path to resolve config module
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from config import BROKER_SCHEMAS, DATA_RAW_DIR # type: ignore
-from utils.logger import get_logger # type: ignore
+from ..config import BROKER_SCHEMAS, DATA_RAW_DIR
+from ..utils.logger import get_logger
 
 logger = get_logger("ingestor")
 
@@ -27,7 +20,6 @@ def load_csv(filepath: str) -> pd.DataFrame:
     if df.empty:
         raise ValueError(f"File is empty: {filepath}")
 
-    # Normalize column names: lowercase + strip whitespace
     df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]
 
     logger.info(f"Loaded {len(df)} rows from {os.path.basename(filepath)}")
@@ -37,11 +29,13 @@ def load_csv(filepath: str) -> pd.DataFrame:
 def validate_schema(df: pd.DataFrame, required_cols: list, file_label: str) -> None:
     """Raise clearly if any required column is missing."""
     missing = [col for col in required_cols if col not in df.columns]
+
     if missing:
         raise ValueError(
             f"[{file_label}] Missing required columns: {missing}\n"
             f"Found columns: {list(df.columns)}"
         )
+
     logger.info(f"[{file_label}] Schema validation passed ✓")
 
 
@@ -51,49 +45,37 @@ def ingest(
     fno_file: str = None,
     holdings_file: str = None,
 ) -> dict:
-    """
-    Main ingestion entry point.
 
-    Args:
-        broker:        Broker name (must match key in BROKER_SCHEMAS)
-        equity_file:   Path to equity tradebook CSV
-        fno_file:      Path to F&O tradebook CSV
-        holdings_file: Path to current holdings CSV
-
-    Returns:
-        dict with keys: 'equity', 'fno', 'holdings' → raw DataFrames
-    """
     if broker not in BROKER_SCHEMAS:
-        raise ValueError(f"Unsupported broker '{broker}'. Supported: {list(BROKER_SCHEMAS.keys())}")
+        raise ValueError(
+            f"Unsupported broker '{broker}'. Supported: {list(BROKER_SCHEMAS.keys())}"
+        )
 
     schema = BROKER_SCHEMAS[broker]
 
-    # --- Default file paths if not provided ---
-    equity_file   = equity_file   or os.path.join(DATA_RAW_DIR, "zerodha_tradebook_equity.csv")
-    fno_file      = fno_file      or os.path.join(DATA_RAW_DIR, "zerodha_tradebook_fno.csv")
+    equity_file = equity_file or os.path.join(DATA_RAW_DIR, "zerodha_tradebook_equity.csv")
+    fno_file = fno_file or os.path.join(DATA_RAW_DIR, "zerodha_tradebook_fno.csv")
     holdings_file = holdings_file or os.path.join(DATA_RAW_DIR, "zerodha_holdings.csv")
 
     logger.info("=" * 50)
     logger.info("PHASE 1 — DATA INGESTION STARTED")
     logger.info("=" * 50)
 
-    # Load all 3 files
-    df_equity   = load_csv(equity_file)
-    df_fno      = load_csv(fno_file)
+    df_equity = load_csv(equity_file)
+    df_fno = load_csv(fno_file)
     df_holdings = load_csv(holdings_file)
 
-    # Validate schemas
-    validate_schema(df_equity,   schema["equity"]["required_columns"],   "Equity Tradebook")
-    validate_schema(df_fno,      schema["fno"]["required_columns"],       "F&O Tradebook")
-    validate_schema(df_holdings, schema["holdings"]["required_columns"],  "Holdings")
+    validate_schema(df_equity, schema["equity"]["required_columns"], "Equity Tradebook")
+    validate_schema(df_fno, schema["fno"]["required_columns"], "F&O Tradebook")
+    validate_schema(df_holdings, schema["holdings"]["required_columns"], "Holdings")
 
     logger.info("PHASE 1 — INGESTION COMPLETE ✓")
-    logger.info(f"  Equity trades : {len(df_equity)} rows")
-    logger.info(f"  F&O trades    : {len(df_fno)} rows")
-    logger.info(f"  Holdings      : {len(df_holdings)} rows")
+    logger.info(f"Equity trades : {len(df_equity)} rows")
+    logger.info(f"F&O trades    : {len(df_fno)} rows")
+    logger.info(f"Holdings      : {len(df_holdings)} rows")
 
     return {
-        "equity":   df_equity,
-        "fno":      df_fno,
+        "equity": df_equity,
+        "fno": df_fno,
         "holdings": df_holdings,
     }
