@@ -441,31 +441,25 @@ export default function Dashboard({ user, onLogout, onReupload }) {
             </div>
           )}
 
-        {tab === "analysis" && (
+       {tab === "analysis" && (
   <div style={{ animation: "fadeUp .5s ease" }}>
-    
+
     <h2 style={{ fontSize: "22px", color: C.text, marginBottom: "20px" }}>
       Portfolio Analysis
     </h2>
 
+    {/* ── XIRR Chart ── */}
     <div style={{ ...card, marginBottom: "20px" }}>
-      <div style={{
-        fontSize: "14px",
-        fontWeight: "700",
-        color: C.text,
-        marginBottom: "20px"
-      }}>
+      <div style={{ fontSize: "14px", fontWeight: "700", color: C.text, marginBottom: "20px" }}>
         XIRR % per Stock (Annualized Return)
       </div>
 
       {(() => {
-
-        const analysisData = [...stocks]   // ⭐ IMPORTANT FIX
+        const analysisData = [...stocks]
           .filter(s => s.xirr_pct !== null && s.xirr_pct !== undefined)
           .sort((a, b) => b.xirr_pct - a.xirr_pct)
           .map(s => {
             const xirr = Number(s.xirr_pct.toFixed(1));
-
             return {
               symbol: s.symbol,
               xirr: xirr,
@@ -476,55 +470,78 @@ export default function Dashboard({ user, onLogout, onReupload }) {
         return (
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={analysisData}>
-
-              <XAxis
-                dataKey="symbol"
-                tick={{ fill: C.textSub, fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-              />
-
-              <YAxis
-                tick={{ fill: C.textSub, fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `${v}%`}
-              />
-
+              <XAxis dataKey="symbol" tick={{ fill: C.textSub, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: C.textSub, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
               <Tooltip
                 formatter={(v) => [`${v}%`, "XIRR"]}
                 labelFormatter={(l) => `Stock: ${l}`}
-                contentStyle={{
-                  background: C.white,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: "8px"
-                }}
+                contentStyle={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: "8px" }}
               />
-
-              <Bar dataKey="xirr" radius={[5,5,0,0]}>
+              <Bar dataKey="xirr" radius={[5, 5, 0, 0]}>
                 {analysisData.map((entry, i) => (
-                  <Cell key={i} fill={entry.fill}/>
+                  <Cell key={i} fill={entry.fill} />
                 ))}
               </Bar>
-
             </BarChart>
           </ResponsiveContainer>
         );
       })()}
 
-      <div style={{ display:"flex", gap:"16px", marginTop:"12px" }}>
-        <div style={{ fontSize:"12px", color:C.textSub }}>
-          <strong>🟢 Green</strong> &gt; 12% (beating market)
-        </div>
-        <div style={{ fontSize:"12px", color:C.textSub }}>
-          <strong>🔵 Blue</strong> 0–12%
-        </div>
-        <div style={{ fontSize:"12px", color:C.textSub }}>
-          <strong>🔴 Red</strong> Negative
-        </div>
+      <div style={{ display: "flex", gap: "16px", marginTop: "12px" }}>
+        <div style={{ fontSize: "12px", color: C.textSub }}><strong>🟢 Green</strong> &gt; 12% (beating market)</div>
+        <div style={{ fontSize: "12px", color: C.textSub }}><strong>🔵 Blue</strong> 0–12%</div>
+        <div style={{ fontSize: "12px", color: C.textSub }}><strong>🔴 Red</strong> Negative</div>
+      </div>
+    </div>
+
+    {/* ── Conviction Score Chart ── */}
+    <div style={{ ...card, marginBottom: "20px" }}>
+      <div style={{ fontSize: "14px", fontWeight: "700", color: C.text, marginBottom: "4px" }}>
+        Conviction Score per Stock
+      </div>
+      <div style={{ fontSize: "12px", color: C.textSub, marginBottom: "20px" }}>
+        Based on holding duration, trade frequency & return consistency (0–100)
       </div>
 
+      {(() => {
+        const convData = [...stocks]
+          .filter(s => s.conviction_score !== null && s.conviction_score !== undefined)
+          .sort((a, b) => b.conviction_score - a.conviction_score)
+          .map(s => ({
+            symbol: s.symbol,
+            score: s.conviction_score,
+            fill: s.conviction_score >= 75 ? C.green : s.conviction_score >= 50 ? C.blue : C.red
+          }));
+
+        return (
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={convData}>
+              <XAxis dataKey="symbol" tick={{ fill: C.textSub, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 100]} tick={{ fill: C.textSub, fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip
+                formatter={(v) => [`${v} / 100`, "Conviction"]}
+                labelFormatter={(l) => `Stock: ${l}`}
+                contentStyle={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: "8px" }}
+              />
+              <ReferenceLine y={75} stroke={C.green} strokeDasharray="4 4" label={{ value: "High (75)", fill: C.green, fontSize: 11 }} />
+              <ReferenceLine y={50} stroke={C.blue} strokeDasharray="4 4" label={{ value: "Mid (50)", fill: C.blue, fontSize: 11 }} />
+              <Bar dataKey="score" radius={[5, 5, 0, 0]}>
+                {convData.map((entry, i) => (
+                  <Cell key={i} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        );
+      })()}
+
+      <div style={{ display: "flex", gap: "16px", marginTop: "12px" }}>
+        <div style={{ fontSize: "12px", color: C.textSub }}><strong>🟢 Green</strong> ≥ 75 (High Conviction)</div>
+        <div style={{ fontSize: "12px", color: C.textSub }}><strong>🔵 Blue</strong> 50–74 (Moderate)</div>
+        <div style={{ fontSize: "12px", color: C.textSub }}><strong>🔴 Red</strong> &lt; 50 (Low)</div>
+      </div>
     </div>
+
   </div>
 )}
           {/* ── HEATMAP ── */}
