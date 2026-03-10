@@ -189,6 +189,16 @@ Compares each stock against your **own** baseline — not generic benchmarks. Fl
 ## 📸 Screenshots
 
 > Overview Tab · Analysis Tab · Sector Heatmap · Anomaly Detection · Tax Optimizer
+<img width="1458" height="545" alt="Screenshot 2026-03-10 122145" src="https://github.com/user-attachments/assets/0269ce4e-daf2-4625-8ad1-c12fefeae89b" />
+<img width="1878" height="776" alt="Screenshot 2026-03-10 122124" src="https://github.com/user-attachments/assets/cf13bb10-d6e8-4197-ae70-6209953b7a98" />
+<img width="1541" height="713" alt="Screenshot 2026-03-10 122110" src="https://github.com/user-attachments/assets/ecb06ffa-5b08-4022-baca-51114f096446" />
+<img width="1907" height="813" alt="Screenshot 2026-03-10 122056" src="https://github.com/user-attachments/assets/4cf7fb2e-4276-428b-88e1-3c64e71d50e5" />
+<img width="1499" height="364" alt="Screenshot 2026-03-10 122243" src="https://github.com/user-attachments/assets/9ec5ffd7-6241-4dbc-8ea1-c877077688b1" />
+<img width="1503" height="624" alt="Screenshot 2026-03-10 122234" src="https://github.com/user-attachments/assets/a454bab1-2fa7-4040-92e9-769474aa7feb" />
+<img width="1541" height="604" alt="Screenshot 2026-03-10 122220" src="https://github.com/user-attachments/assets/d50a4cb9-29a0-448c-a719-9d6ace981170" />
+<img width="1062" height="671" alt="Screenshot 2026-03-10 122206" src="https://github.com/user-attachments/assets/3833d60c-9aa7-4bf7-8892-4de12f5cb994" />
+<img width="1527" height="528" alt="Screenshot 2026-03-10 122155" src="https://github.com/user-attachments/assets/9f4fbb9c-dfcb-4465-977f-c86bdfb862b7" />
+
 
 ---
 
