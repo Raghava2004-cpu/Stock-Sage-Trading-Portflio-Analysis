@@ -1,6 +1,6 @@
 # 📈 StockSage — Portfolio Analytics Dashboard
 
-A full-stack portfolio analytics platform for Indian stock market (NSE/BSE) investors. Upload your Zerodha trade history and get deep insights into your portfolio — P&L, XIRR, tax classification, anomaly detection, and more.
+A full-stack portfolio analytics platform for Global stock market (NSE/BSE) investors. Upload your Zerodha trade history and get deep insights into your portfolio — P&L, XIRR, tax classification, anomaly detection, and more.
 
 🔗 **Live Demo:** [stock-sage-trading-portflio-analysi.vercel.app](https://stock-sage-trading-portflio-analysi.vercel.app)
 
@@ -204,4 +204,4 @@ MIT License — free to use, modify and distribute.
 
 ---
 
-*Built with ❤️ for Indian retail investors*
+*Built with ❤️ for Global retail investors*
