@@ -4,7 +4,6 @@
 
 import yfinance as yf
 from fastapi import APIRouter, Query
-from functools import lru_cache
 from datetime import datetime, timedelta
 import time
 
@@ -61,7 +60,7 @@ def fetch_from_yahoo(symbols: list[str]) -> dict[str, float]:
 @router.get("/")
 def get_prices(symbols: str = Query(..., description="Comma-separated NSE symbols e.g. RELIANCE,TCS,INFY")):
     """
-    Returns latest prices for given NSE symbols.
+    Returns latest prices + previous close for given NSE symbols.
     Prices are cached for 15 minutes — Yahoo Finance provides ~15-min delayed data for free.
 
     Example: GET /prices?symbols=RELIANCE,TCS,INFY
@@ -69,6 +68,7 @@ def get_prices(symbols: str = Query(..., description="Comma-separated NSE symbol
     symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
 
     prices = {}
+    prev_closes = {}
     to_fetch = []
 
     # Return cached prices if fresh
@@ -84,10 +84,40 @@ def get_prices(symbols: str = Query(..., description="Comma-separated NSE symbol
         fresh = fetch_from_yahoo(to_fetch)
         prices.update(fresh)
 
+    # Fetch prev close for today's P&L change calculation
+    try:
+        yahoo_symbols = [s + ".NS" for s in symbol_list]
+
+        if len(symbol_list) == 1:
+            ticker = yf.Ticker(yahoo_symbols[0])
+            hist = ticker.history(period="5d", interval="1d")
+            if len(hist) >= 2:
+                prev_closes[symbol_list[0]] = round(float(hist["Close"].dropna().iloc[-2]), 2)
+        else:
+            data = yf.download(
+                tickers=yahoo_symbols,
+                period="5d",
+                interval="1d",
+                group_by="ticker",
+                auto_adjust=True,
+                progress=False,
+            )
+            for sym, ysym in zip(symbol_list, yahoo_symbols):
+                try:
+                    closes = data[ysym]["Close"].dropna()
+                    if len(closes) >= 2:
+                        prev_closes[sym] = round(float(closes.iloc[-2]), 2)
+                except Exception:
+                    pass
+
+    except Exception as e:
+        print(f"[prices] prev_close fetch error: {e}")
+
     return {
-        "prices":      prices,
-        "delayed_min": 15,
-        "note":        "Prices are 15-minute delayed via Yahoo Finance",
+        "prices":       prices,
+        "prev_closes":  prev_closes,
+        "delayed_min":  15,
+        "note":         "Prices are 15-minute delayed via Yahoo Finance",
         "cached_until": datetime.utcnow() + timedelta(seconds=CACHE_TTL_SECONDS),
     }
 
