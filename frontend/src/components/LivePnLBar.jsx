@@ -6,9 +6,10 @@ import axios from "axios";
 import { C, fmt, API } from "../constants";
 
 export function LivePnLBar({ stocks }) {
-  const [prices,  setPrices]  = useState({});
-  const [updated, setUpdated] = useState(null);
-  const [delayed, setDelayed] = useState(false);
+  const [prices,     setPrices]     = useState({});
+  const [prevCloses, setPrevCloses] = useState({});
+  const [updated,    setUpdated]    = useState(null);
+  const [delayed,    setDelayed]    = useState(false);
 
   useEffect(() => {
     if (!stocks.length) return;
@@ -18,10 +19,11 @@ export function LivePnLBar({ stocks }) {
         const symbols = stocks.map(s => s.symbol).join(",");
         const res = await axios.get(`${API}/prices?symbols=${symbols}`);
         setPrices(res.data.prices || {});
+        setPrevCloses(res.data.prev_closes || {});
         setDelayed(true);
         setUpdated(new Date().toLocaleTimeString("en-IN"));
       } catch {
-        // Fallback: use last_price from DB — better than Math.random()
+        // Fallback: use last_price from DB
         const fallback = {};
         stocks.forEach(s => { fallback[s.symbol] = s.last_price || 0; });
         setPrices(fallback);
@@ -34,10 +36,11 @@ export function LivePnLBar({ stocks }) {
     return () => clearInterval(t);
   }, [stocks]);
 
+  // Today's P&L = (livePrice - yesterdayClose) * qty held
   const livePnL = stocks.reduce((sum, s) => {
     const livePrice = prices[s.symbol] || s.last_price || 0;
-    const prevPrice = s.last_price || livePrice;
-    return sum + ((livePrice - prevPrice) * (s.current_qty || 0));
+    const prevClose = prevCloses[s.symbol] || s.last_price || livePrice;
+    return sum + ((livePrice - prevClose) * (s.current_qty || 0));
   }, 0);
 
   const totalValue = stocks.reduce((sum, s) => {
@@ -72,6 +75,7 @@ export function LivePnLBar({ stocks }) {
           </span>
         )}
       </div>
+
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <span style={{
           fontSize: "22px", fontWeight: "900",
@@ -82,6 +86,7 @@ export function LivePnLBar({ stocks }) {
         </span>
         <span style={{ fontSize: "13px", color: C.textSub }}>today</span>
       </div>
+
       <div style={{ display: "flex", gap: "28px", alignItems: "center" }}>
         <div>
           <div style={{ fontSize: "11px", color: C.textSub, letterSpacing: "1px" }}>LIVE VALUE</div>
